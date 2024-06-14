@@ -12,7 +12,7 @@ DB_HOST = os.environ.get('DB_HOST')
 DB_NAME = os.environ.get('DB_NAME')
 
 DATABASE_URL = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}'
-engine = create_engine(DATABASE_URL)
+engine = create_engine("postgresql://default:d0cnGAiYa3oh@ep-silent-waterfall-a1olg5xw.ap-southeast-1.aws.neon.tech:5432/verceldb?sslmode=require")
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
