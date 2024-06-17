@@ -88,9 +88,10 @@ class PackageData(Base):
     weight = Column(Float)
     shipping_id = Column(Integer, ForeignKey("shipping.id"), nullable=True)
     status = Column(Integer, default=0)
-    received_date = Column(Date, nullable=True)
+    received_datetime = Column(DateTime, nullable=True)
     reception_id = Column(Integer, nullable=True)
     exp_date = Column(Date, nullable=True)
+    created_datetime = Column(DateTime, nullable=True)
 
     centra_owner = relationship(
         "Centra", backref="package_data", foreign_keys=[centra_id])
@@ -120,6 +121,7 @@ class Shipping(Base):
     expedition = Column(String(500))
     centra_id = Column(Integer)
     eta_datetime = Column(DateTime)
+    arrival_datetime = Column(DateTime, nullable=True)
     # expedition_id = Column(Integer, ForeignKey("expedition.id"))
 
     # expedition = relationship("Expedition", backref="shipping")
@@ -193,13 +195,16 @@ class GuardHarborNotification(Base):
     message = Column(String(500))
     date = Column(DateTime)
     centra_id = Column(Integer)
-
+    shipping_id = Column(Integer)
 
 class ReceptionPackage(Base):
     __tablename__ = "reception_packages"
     id = Column(Integer, primary_key=True, index=True)
+    package_id = Column(String(length=2000))
     total_packages_received = Column(Integer)
     weight = Column(Float)
     receival_datetime = Column(DateTime)
     centra_id = Column(String(length=500))
-
+    guard_harbor_name = Column(String(length=500))
+    xyz_name = Column(String(length=500))
+    description = Column(String(length=500))

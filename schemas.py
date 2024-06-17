@@ -112,6 +112,7 @@ class Package(packageRecord):
     
         id: int
         status: int
+        created_datetime: Optional[datetime] = None
     
         class Config:
             from_attributes = True
@@ -129,7 +130,6 @@ class ShippingDataRecord(BaseModel):
 
     id: int
     expedition_id: int
-
 
 class ShippingDepature(ShippingDataRecord):
     departure_date: date
@@ -207,6 +207,10 @@ class ReceptionPackageBase(BaseModel):
     weight: float
     centra_id: str
     receival_datetime: datetime
+    guard_harbor_name: str
+    xyz_name: str
+    description: str
+
 
 class ReceptionPackageRecord(ReceptionPackageBase):
     pass

@@ -49,6 +49,8 @@ def add_checkpoint_data(checkpoint: schemas.CheckpointDataRecord, db: db_depende
     for id in checkpoint.package_ids:
         print(id)
         crud.update_checkpoint(db=db, id=id,)
+        crud.update_package_receival_datetime(db=db, package_id=id, received_datetime=db_checkpoint.arrival_datetime)
+    crud.update_shipping_arrival(db=db, shipping_id=checkpoint.shipping_id, arrival_datetime=checkpoint.arrival_datetime)
     return JSONResponse(content={"detail": "checkpoint record added successfully"}, status_code=status.HTTP_201_CREATED)
 
 # @router.post("/update_checkpoint", dependencies=[Depends(role_access(RoleEnum.GuardHarbor))])
@@ -72,6 +74,13 @@ def get_shipping(db: db_dependecy):
     db_shipping = crud.get_shipping(db=db)
     return db_shipping
 
+@router.put("/shipping/{id}", dependencies=[Depends(role_access(RoleEnum.GuardHarbor))])
+def update_shipping(shipping_id: int, arrival_datetime: schemas.CheckpointDataRecord, db: db_dependecy):
+    db_shipping = crud.update_shipping_arrival(db=db, shipping_id=shipping_id, arrival_datetime=arrival_datetime.arrival_datetime)
+    if db_shipping is None:
+        return JSONResponse(status_code=404, content={"message": "Shipping ID not found"})
+    return db_shipping
+
 @router.get("/packages", dependencies=[Depends(role_access(RoleEnum.GuardHarbor))])
 def get_packages(db: db_dependecy):
     db_packages = crud.get_packages(db=db)
@@ -81,3 +90,18 @@ def get_packages(db: db_dependecy):
 def get_checkpoint(db: db_dependecy):
     db_checkpoint = crud.get_checkpoints(db=db)
     return db_checkpoint
+
+@router.get("/packages_status", dependencies=[Depends(role_access(RoleEnum.GuardHarbor))])
+def get_packages_with_status(status: int, db: db_dependecy):
+    db_packages = crud.get_packages_by_status(db=db, status=status)
+    return db_packages
+
+@router.get("/notification", dependencies=[Depends(role_access(RoleEnum.GuardHarbor))])
+def get_notification(db: db_dependecy):
+    db_packages = crud.get_guard_harbor_notifications(db=db)
+    return db_packages
+
+@router.get("/reception_packages", dependencies=[Depends(role_access(RoleEnum.GuardHarbor))])
+def get_reception_packages(db: db_dependecy):
+    db_reception = crud.get_reception_packages(db=db)
+    return db_reception

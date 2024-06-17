@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, Query
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 from sqlalchemy.sql import extract
 import models
 import schemas
@@ -140,7 +140,7 @@ def get_dry_leaves(db: Session, centra_id: int = 0, skip: int = 0, limit: int = 
         query = filter_by_centra_id(query, models.Dry, centra_id)
     return query.offset(skip).limit(limit).all()
 
-def get_dry_leaves_by_dried_date(db: Session, skip: int = 0, limit: int = 20, year: int = 0, month: int = 0, day: int = 0, filter: str = ""):
+def get_dry_leaves_by_dried_date(db: Session, centra_id: int=0, skip: int = 0, limit: int = 20, year: int = 0, month: int = 0, day: int = 0, filter: str = ""):
     query = db.query(models.Dry)
     if year and month and day:
         if filter == "w":
@@ -153,13 +153,14 @@ def get_dry_leaves_by_dried_date(db: Session, skip: int = 0, limit: int = 20, ye
         if month:
             query = query.filter(extract("month", models.Dry.dried_date) == month)
 
+    if centra_id: query = filter_by_centra_id(query, models.Dry, centra_id)
+
     if skip:
         query = query.offset(skip)
     
     if limit:
         query = query.limit(limit)        
     
-
     return query.all()
 
 def get_dry_leaves_mobile(db: Session, date_origin:date, interval: str, centra_id: int=0, skip: int = 0, limit: int = 10):
@@ -189,7 +190,7 @@ def get_flour(db: Session, centra_id: int = 0, skip: int = 0, limit: int = 10, d
     if centra_id: query = filter_by_centra_id(query, models.Flour, centra_id)
     return query.offset(skip).limit(limit).all()
 
-def get_flour_by_floured_date(db: Session, skip: int = 0, limit: int = 20, year: int = 0, month: int = 0, day: int = 0, filter: str = ""):
+def get_flour_by_floured_date(db: Session, centra_id: int = 0, skip: int = 0, limit: int = 20, year: int = 0, month: int = 0, day: int = 0, filter: str = ""):
     query = db.query(models.Flour)
     if year and month and day:
         if filter == "w":
@@ -201,6 +202,8 @@ def get_flour_by_floured_date(db: Session, skip: int = 0, limit: int = 20, year:
     
         if month:
             query = query.filter(extract("month", models.Flour.floured_date) == month)
+
+    if centra_id: query = query.filter(models.Flour.centra_id == centra_id)
 
     if skip:
         query = query.offset(skip)
@@ -240,6 +243,33 @@ def get_packages(db: Session, centra_id: int=0):
     if centra_id: query = filter_by_centra_id(query, models.PackageData, centra_id)
     return query.all()
 
+def get_packages_created(db: Session, centra_id: int, year: int = 0, month: int = 0, day: int = 0, filter: str = "", skip: int = 0, limit: int = 20):
+    query = db.query(models.PackageData).filter(models.PackageData.centra_id == centra_id)
+
+    if year and month and day:
+        if filter == "w":
+            # Calculate start of week
+            start_date = date(year, month, day) - timedelta(days=date(year, month, day).weekday())
+            # Ensure the end date is the start date + 6 days to cover the whole week
+            end_date = start_date + timedelta(days=6)
+            query = query.filter(func.DATE(models.PackageData.created_datetime).between(start_date, end_date))
+        else: query = query.filter(func.DATE(models.PackageData.created_datetime) == date(year, month, day))
+
+    elif year:
+        query = query.filter(extract("year", models.PackageData.created_datetime) == year)
+
+        if month:
+            query = query.filter(extract("month", models.PackageData.created_datetime) == month)
+
+    if skip:
+        query = query.offset(skip)
+    
+    if limit:
+        query = query.limit(limit)  
+
+    return query.all()
+     
+
 def get_shipping(db: Session, centra_id: int = 0, skip: int = 0, limit: int = 10, date_filter: date = None, before: bool = None, after: bool = None):
     query = db.query(models.Shipping)
     if date_filter:
@@ -266,7 +296,19 @@ def get_centra_notifications(db: Session, centra_id: int = 0, skip: int = 0, lim
     if centra_id: query = filter_by_centra_id(query, models.CentraNotification, centra_id)
     return query.offset(skip).limit(limit).all()
 
-def get_reception_packages(db: Session, skip: int = 0, limit: int = 10, date_filter: datetime = None, before: bool = None, after: bool = None):
+def get_guard_harbor_notifications(db: Session, skip: int = 0, limit: int = 100, date_filter: date = None, filter: Union[str, None] = None):
+    query = db.query(models.GuardHarborNotification)
+
+    if filter == "before":
+        query = query.filter(models.GuardHarborNotification.date < date_filter)
+    elif filter == "after":
+            query = query.filter(models.GuardHarborNotification.date > date_filter)
+    elif filter == "during":
+            query = query.filter(models.GuardHarborNotification.date == date_filter)
+    
+    return query.offset(skip).limit(limit).all()
+
+def get_reception_packages(db: Session, skip: int = 0, limit: int = 100, date_filter: datetime = None, before: bool = None, after: bool = None):
     query = db.query(models.ReceptionPackage)
     if date_filter:
         if before:
@@ -344,7 +386,7 @@ def create_checkpoint(db: Session, checkpoint: schemas.CheckpointDataRecord):
     return db_checkpoint
 
 def create_package(db: Session, package: schemas.PackageCreate, id):
-    db_package = models.PackageData(**package.model_dump(), centra_id=id)
+    db_package = models.PackageData(**package.model_dump(), centra_id=id, created_datetime=datetime.datetime.now())
     db.add(db_package)
     db.commit()
     db.refresh(db_package)
@@ -357,15 +399,15 @@ def create_centra_notifications(db: Session, message:str, id:int):
     db.refresh(db_centra_notif)
     return db_centra_notif
 
-def create_GuardHarbor_notifications(db: Session, message:str, id:int):
-    db_guard_harbor_notif = models.GuardHarborNotification(message=message, date=datetime.datetime.now(), centra_id=id)
+def create_GuardHarbor_notifications(db: Session, message:str, id:int, shipping_id:int):
+    db_guard_harbor_notif = models.GuardHarborNotification(message=message, date=datetime.datetime.now(), centra_id=id, shipping_id=shipping_id)
     db.add(db_guard_harbor_notif)
     db.commit()
     db.refresh(db_guard_harbor_notif)
     return db_guard_harbor_notif
 
 def create_reception_packages(db: Session, reception_packages: schemas.ReceptionPackageRecord):
-    db_reception_packages = models.ReceptionPackage(**reception_packages.model_dump(exclude={"package_id"}))
+    db_reception_packages = models.ReceptionPackage(**reception_packages.model_dump(exclude={"package_id"}), package_id=str(reception_packages.package_id).strip("[]"))
     db.add(db_reception_packages)
     db.commit()
     db.refresh(db_reception_packages)
@@ -414,6 +456,14 @@ def update_shipping(db: Session, shipping_id: int, shipping: schemas.ShippingDat
         db.refresh(db_shipping)
     return db_shipping
 
+def update_shipping_arrival(db: Session, shipping_id: int, arrival_datetime: datetime):
+    shipping = db.query(models.Shipping).filter(models.Shipping.id == shipping_id).first()
+    if shipping:
+        shipping.arrival_datetime = arrival_datetime
+        db.commit()
+        db.refresh(shipping)
+    return shipping
+
 
 def update_centra_notifications(db: Session, centra_notif_id: int, centra_notif: schemas.CentraNotification):
     db_centra_notif = get_centra_notifications_by_id(db, centra_notif_id)
@@ -442,6 +492,17 @@ def update_package_status(db: Session, package_id: int, status: int):
         print(status)
 
         return db_package
+    return None
+
+def update_package_receival_datetime(db: Session, package_id: int, received_datetime: datetime):
+    db_package = get_package_by_id(db, package_id)
+    if db_package:
+        setattr(db_package, "received_datetime", received_datetime)
+        db.commit()
+        db.refresh(db_package)
+        print(received_datetime)
+
+        return db_package 
     return None
 
 def check_package_expiry(db: Session):
