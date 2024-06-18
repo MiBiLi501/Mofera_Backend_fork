@@ -330,6 +330,14 @@ def get_packages(db: Session, centra_id: int=0):
     if centra_id: query = filter_by_centra_id(query, models.PackageData, centra_id)
     return query.all()
 
+def get_package_summary(db: Session, centra_id: int=0):
+    query = db.query(models.PackageData)
+    if centra_id: query = filter_by_centra_id(query, models.PackageData, centra_id)
+    total = len(query.all())
+    pending = len(query.filter(models.PackageData.status == 1).all())
+    arrived  = len(query.filter(models.PackageData.status == 2 or models.PackageData.status == 3).all())
+    return {"total": total, "pending": pending, "arrived": arrived}
+
 def get_packages_created(db: Session, centra_id: int, year: int = 0, month: int = 0, day: int = 0, filter: str = "", skip: int = 0, limit: int = 20):
     query = db.query(models.PackageData).filter(models.PackageData.centra_id == centra_id)
 
@@ -455,6 +463,13 @@ def update_reception_detail(db:Session, id:int, reception_id:int):
     db.commit()
     db.refresh(db_package)
     return db_package
+
+def create_centra(db: Session, centra: schemas.CentraRecord):
+    db_centra = models.Centra(location=centra.location)
+    db.add(db_centra)
+    db.commit()
+    db.refresh(db_centra)
+    return db_centra
 
 def create_collection(db: Session, collection: schemas.CollectionRecord, user: models.Users):
     db_collection = models.Collection(retrieval_datetime=collection.retrieval_datetime, weight=collection.weight, centra_id=user.centra_unit)
